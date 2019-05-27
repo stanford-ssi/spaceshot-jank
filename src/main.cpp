@@ -12,24 +12,37 @@
 #define BMP_CS   (10)
 
 Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
-Adafruit_BNO055 bno = Adafruit_BNO055(55);
+Adafruit_BNO055 bno = Adafruit_BNO055();
 
 const int chipSelect = BUILTIN_SDCARD;
 
-void error() {
+int num_samples = 1;
+int setup_timestamp = 0;
+
+void error(const char* msg) {
   while (true) {
     digitalWrite(LED_BUILTIN, HIGH);
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
     delay(100);
+    Serial.println(msg);
   }
 }
 
 void setup() {
+
+  Serial.begin(9600);
   
   pinMode(39, OUTPUT);
   pinMode(36, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
+
+  for (size_t i = 0; i < 5; i++) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(1000);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(100);
+  }
 
   digitalWrite(39, LOW);
   digitalWrite(36, LOW);
@@ -39,47 +52,71 @@ void setup() {
 
   if (!bno.begin()) {
     Serial.println("ALACK! I have no BNOs!");
-    error();
+    error("No BNO");
   }
 
   if (!SD.begin(chipSelect)) {
     Serial.println("ALACK! I have no SD cards!");
-    error();
+    error("No SD card");
   }
 
   if (!bmp.begin()) {
     Serial.println("ALACK! I have no bmps!");
-    error();
+    error("No BMP");
   }
 
+  setup_timestamp = millis();
 }
 
-void loop() {
 
-  File dataFile = SD.open("LAUNCH_DATA.csv", FILE_WRITE);
-  if (!dataFile) {
-    Serial.println("ALACK! I have no files!!");
-    error();
+struct datalog {
+  unsigned int time;
+  float x;
+  float y;
+  float z;
+  float temp;
+  float pres;
+  float alt;
+};
+
+#define BUF_SIZE 1024
+struct datalog data[BUF_SIZE];
+
+void loop() {
+  if (num_samples % BUF_SIZE == 0) {
+    File dataFile = SD.open("DATALOG.CSV", FILE_WRITE);
+    if (!dataFile) {
+      Serial.println("ALACK! I have no files!!");
+      return;
+    } else {
+      Serial.println("** datalog event");
+    }
+    size_t amount_to_write = sizeof(struct datalog) * BUF_SIZE;
+    dataFile.write( (char *) data, amount_to_write);
+    dataFile.flush();
+    Serial.println(amount_to_write);
   }
+
+
+  int i = num_samples % BUF_SIZE;
+  data[i].time = micros();
 
   sensors_event_t event; 
   bno.getEvent(&event);
+  data[i].x = event.orientation.x;
+  data[i].y = event.orientation.y;
+  data[i].z = event.orientation.z;
 
-  dataFile.print(event.orientation.x, 16);
-  dataFile.print(", ");
-  dataFile.print(event.orientation.y, 16);
-  dataFile.print(", ");
-  dataFile.print(event.orientation.z, 16);
-  dataFile.print(", ");
-  dataFile.print(bmp.readTemperature(), 16);
-  dataFile.print(", ");
-  dataFile.print(bmp.readPressure(), 16);
-  dataFile.print(", ");
-  dataFile.print(bmp.readAltitude(1013.25), 16);
-  dataFile.println("");
+  data[i].temp = bmp.readTemperature();
+  data[i].pres = bmp.readPressure();
+  data[i].alt  = bmp.readAltitude(1013.25);
   
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(50);
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(50);
+  if (i == 0)
+    digitalWrite(LED_BUILTIN, HIGH);
+  if (i == BUF_SIZE / 2)
+    digitalWrite(LED_BUILTIN, LOW);
+  if (i == 0)
+    Serial.println((float) num_samples / (millis() - setup_timestamp));
+
+  num_samples++;
 }
