@@ -71,15 +71,21 @@ void setup() {
 
 struct datalog {
   unsigned int time;
-  float x;
-  float y;
-  float z;
+
+  float ax;
+  float ay;
+  float az;
+
+  float rx;
+  float ry;
+  float rz;
+
   float temp;
   float pres;
   float alt;
 };
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 4096
 struct datalog data[BUF_SIZE];
 
 void loop() {
@@ -102,10 +108,16 @@ void loop() {
   data[i].time = micros();
 
   sensors_event_t event; 
-  bno.getEvent(&event);
-  data[i].x = event.orientation.x;
-  data[i].y = event.orientation.y;
-  data[i].z = event.orientation.z;
+
+  bno.getEvent(&event, Adafruit_BNO055::VECTOR_LINEARACCEL);
+  data[i].ax = event.acceleration.x;
+  data[i].ay = event.acceleration.y;
+  data[i].az = event.acceleration.z;
+
+  bno.getEvent(&event, Adafruit_BNO055::VECTOR_EULER);
+  data[i].rx = event.orientation.x;
+  data[i].ry = event.orientation.y;
+  data[i].rz = event.orientation.z;
 
   data[i].temp = bmp.readTemperature();
   data[i].pres = bmp.readPressure();
