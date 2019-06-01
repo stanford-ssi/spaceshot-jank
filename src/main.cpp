@@ -59,12 +59,10 @@ void setup() {
     error("No BNO");
   }
 
-  /*
   if (!SD.begin(chipSelect)) {
     Serial.println("ALACK! I have no SD cards!");
     error("No SD card");
   }
-  */
 
   if (!bmp.begin()) {
     Serial.println("ALACK! I have no bmps!");
@@ -99,7 +97,10 @@ struct datalog {
 struct datalog data[BUF_SIZE];
 
 void loop() {
-  /*
+  while (SerialGPS.available() > 0) {
+    //Serial.print((char)SerialGPS.read());
+    gps.encode(SerialGPS.read());
+  }
   if (num_samples % BUF_SIZE == 0) {
     File dataFile = SD.open("DATALOG.CSV", FILE_WRITE);
     if (!dataFile) {
@@ -113,7 +114,6 @@ void loop() {
     dataFile.flush();
     Serial.println(amount_to_write);
   }
-  */
 
   int i = num_samples % BUF_SIZE;
   data[i].time = micros();
@@ -134,20 +134,9 @@ void loop() {
   data[i].pres = bmp.readPressure();
   data[i].alt  = bmp.readAltitude(1013.25);
 
-  while (SerialGPS.available() > 0) {
-    Serial.print(SerialGPS.read());
-    // gps.encode(SerialGPS.read());
-  }
-
   data[i].gps_alt = gps.altitude.meters();
   data[i].gps_lat = gps.location.lat();
   data[i].gps_long = gps.location.lng();
-  /* 
-  Serial.println("Lat:");
-  Serial.println(gps.location.lat(), 6);
-  Serial.println("Lon:");
-  Serial.println(gps.location.lng(), 6);
-  */
   
   if (i == 0)
     digitalWrite(LED_BUILTIN, HIGH);
