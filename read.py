@@ -8,11 +8,11 @@ if len(sys.argv) == 1:
 
 filename = sys.argv[1]
 
-fmt = struct.Struct('<Ifffffffff')
+fmt = struct.Struct('<Ifffffffffddd')
 
 with open(filename, 'rb') as f:
     while True:
         chunk = f.read(fmt.size)
         row = fmt.unpack(chunk)
-        time, ax, ay, az, rx, ry, rz, temp, pres, alt = fmt.unpack(chunk)
+        time, ax, ay, az, rx, ry, rz, temp, pres, alt, gps_lat, gps_long, gps_alt = fmt.unpack(chunk)
         print(row)
